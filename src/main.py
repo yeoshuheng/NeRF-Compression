@@ -9,7 +9,7 @@ import src.compression.compress as compress
 
 def compress_set(filename : str, saveloc : str):
     """
-    @param filename : Filename of the set of MLP models to compress.
+    @param filename : Filename of the set of MLP models to compress. (.tar)
     @param saveloc : Save location for the MLP models.
 
     Writes compressed set into a seperate directory.
@@ -34,6 +34,36 @@ def compress_set(filename : str, saveloc : str):
     for key, val in compressed_deltas.items(): # Save process
         print("Saving Compressed Format: {}".format(key))
         idiv_file_path = os.path.join(saveloc, 'compressed_{}.pt'.format(key[:-4]))
+        with open(idiv_file_path, 'wb') as f:
+            pickle.dump(val, f)
+
+def compress_set_torch(filename : str, saveloc : str):
+    """
+    @param filename : Filename of the set of MLP models to compress. (.ckpt / .pt)
+    @param saveloc : Save location for the MLP models.
+
+    Writes compressed set into a seperate directory.
+    """
+    models = []
+    for model in os.listdir(filename):
+        if "._" in model:
+            continue # Ignore hidden tar files
+        models.append(model)
+    compressed_deltas = {}
+    base, bias = extract_weights(get_state_dict_torch(filename + "/" + models[0]))
+    compressed_deltas[models[0]] = (zlib.compress(base), bias)
+    for m_ in models[1:]:
+        print("Delta Compression on: {}".format(m_))
+        curr, bias = extract_weights(get_state_dict_torch(filename + "/" + m_))
+        δt = np.subtract(curr, base)
+        compressed_δt, lossy_δt = compress.compress_data(δt)
+        compressed_deltas[m_] = (compressed_δt, bias)
+        base = np.add(base, lossy_δt)
+    if not os.path.exists(saveloc):
+        os.makedirs(saveloc)
+    for key, val in compressed_deltas.items(): # Save process
+        print("Saving Compressed Format: {}".format(key))
+        idiv_file_path = os.path.join(saveloc, 'compressed_{}.pt'.format(key.split(".")[0]))
         with open(idiv_file_path, 'wb') as f:
             pickle.dump(val, f)
 
@@ -63,12 +93,21 @@ def extract_weights(sd):
 
 def get_state_dict(filename : str) -> dict:
     """
-    @param filename : Model checkpoint file.
+    @param filename : Model checkpoint file. (If .tar)
 
     @return State dictionary of original model.
     """
     print("Loading: {}".format(filename))
     return torch.load(filename, map_location = torch.device('cpu'))["network_fn_state_dict"]
+
+def get_state_dict_torch(filename : str) -> dict:
+    """
+    @param filename : Model checkpoint file. (If torch.pt / .ckpt)
+
+    @return State dictionary of original model.
+    """
+    print("Loading: {}".format(filename))
+    return torch.load(filename)
 
 
 def load_compressed_set(filepath : str, saveloc : str, original_weight_dict : dict):
