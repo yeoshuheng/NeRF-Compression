@@ -1,5 +1,5 @@
-# LC-Checkpoint for MLP
+# Compressed Neural Radiance Fields
 
-This is a adapted LC-Checkpoint aimed at the compression of a set of sequential MLP models.
+Applied LC-compression on NeRF models.
 
-The original paper on LC-Checkpoint by Yu Chen, Zhenming Liu, Bin Ren, Xin Jin can be found [here](https://arxiv.org/abs/2009.13003).
+The original paper by Yu Chen, Zhenming Liu, Bin Ren, Xin Jin can be found [here](https://arxiv.org/abs/2009.13003).
